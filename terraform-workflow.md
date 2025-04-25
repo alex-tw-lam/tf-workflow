@@ -1,31 +1,30 @@
 ```mermaid
-flowchart-elk LR
+flowchart-elk TB
     Start((Start)) --> A[User Input Schema]
-    A -->|Code| Validation
+    A -->|Code| CI
 
-    subgraph Validation
-        V1[terraform fmt] --> V5{All Valid?}
-        V2[terraform validate] --> V5
-        V3[tflint] --> V5
-        V4[checkov] --> V5
-        V6[tfsec] --> V5
-        V7[gitleaks] --> V5
-        V8[OPA/Conftest] --> V5
+    subgraph CI[Continuous Integration]
+        direction TB
+        V1[Format Test: terraform fmt] & V2[Syntax Test: terraform validate] & V3[Best Practices: tflint] & V4[Security Scan: checkov] & V6[Cloud Security: tfsec] & V7[Secret Detection: gitleaks] & V8[Policy Check: OPA/Conftest] --> V5{All Valid?}
     end
 
-    V5 -->|Success| D[Plan]
+    subgraph CD[Continuous Delivery]
+        direction TB
+        D[Plan] --> E{Destroy in Plan?}
+        E -->|No| G[Cost Estimation]
+        E -->|Yes| F{Confirm Destroy?}
+        F -->|Yes| G
+        G --> K{Accept Costs?}
+        K -->|Yes| L[Commit tfvars]
+        L --> H[Apply]
+        H --> I{Success?}
+        I -->|Yes| J[Show Connection Credentials]
+    end
+
+    V5 -->|Success| D
     V5 -->|Fail| End((End))
-    D --> E{Destroy in Plan?}
-    E -->|No| G[Cost Estimation]
-    E -->|Yes| F{Confirm Destroy?}
-    F -->|Yes| G
     F -->|No| End
-    G --> K{Accept Costs?}
     K -->|No| End
-    K -->|Yes| L[Commit tfvars]
-    L --> H[Apply]
-    H --> I{Success?}
-    I -->|Yes| J[Show Connection Credentials]
     I -->|No| End
     J --> End
 ```
@@ -36,35 +35,23 @@ The basic steps:
 
 1. **Start**: Begin workflow
 2. **User Input Schema**: Define infrastructure changes using structured schema
-3. **Validation** (parallel CI checks):
-   - terraform fmt: Check and enforce consistent code formatting
-   - terraform validate: Check configuration syntax and consistency
-   - tflint: Detect possible errors and enforce best practices
-   - checkov: Scan for security and compliance issues
-   - tfsec: Security-focused static analysis
-   - gitleaks: Scan for hardcoded secrets and sensitive data
-   - OPA/Conftest: Enforce custom organizational policies
+3. **Continuous Integration**:
+   - Format Test: Ensure consistent code style and formatting
+   - Syntax Test: Validate HCL configuration structure
+   - Best Practices: Check for Terraform best practices and patterns
+   - Security Scan: Detect security vulnerabilities and misconfigurations
+   - Cloud Security: Identify cloud-specific security risks
+   - Secret Detection: Find exposed secrets and credentials
+   - Policy Check: Enforce organizational policies and compliance
    - All checks must pass to proceed
    - If any check fails, workflow ends
-   - If all checks pass, continue to plan
-4. **Plan**: Preview what will change
-5. **Check Plan for Destroy**:
-   - If no destroy operations found in plan, proceed to cost estimation
-   - If destroy operations found in plan, require confirmation
-6. **Confirm Destroy** (if needed):
-   - If destroy confirmed, proceed to cost estimation
-   - If destroy rejected, workflow ends
-7. **Cost Estimation**: Calculate costs of planned changes
-8. **Review Costs**:
-   - If costs are acceptable, proceed to commit
-   - If costs are not acceptable, workflow ends
-9. **Commit tfvars**:
-   - Save approved input as terraform variables file
-   - Commit to code repository for version control
-10. **Apply**: Make the changes happen
-11. **Check Apply Result**:
-    - If apply fails, workflow ends
-    - If apply succeeds, show connection credentials
-12. **Show Connection Credentials**:
-    - Display access information for the created resources
-13. **End**: Workflow complete
+   - If all checks pass, continue to delivery phase
+4. **Continuous Delivery**:
+   - Plan: Preview what will change
+   - Check for destroy operations
+   - Estimate and review costs
+   - Commit approved changes as tfvars
+   - Apply changes
+   - Verify success
+   - Show access credentials
+5. **End**: Workflow complete
